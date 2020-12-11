@@ -3,9 +3,6 @@ var tinydomxx_ccall;
 
 (
     function () {
-        const ALLOC_ENTRY = 0;
-        const FREE_ENTRY = 1;
-
         const PTR_SIZE = 8;
 
         var initial_length = 16;
@@ -63,21 +60,76 @@ var tinydomxx_ccall;
             view[ptr>>2] = value;
         }
 
+        var to_utf8 = new TextDecoder('utf-8');
+
+        function ptr_get_string(heap, ptr, len) {
+            var view = new Uint8Array(heap);
+            var subview = view.subarray(ptr, ptr + len);
+            return to_utf8.decode(subview);
+        }
+
         var ptr_set_ptr = ptr_set32;
         var ptr_get_ptr = ptr_get32;
+
+        const ALLOC_ENTRY = 0;
+        const FREE_ENTRY = 1;
+        const DOCUMENT_CREATE_ELEMENT = 2;
+        const ELEMENT_SETATTRIBUTE = 3;
+        const ELEMENT_APPENDCHILD = 4;
+        const DOCUMENT_CREATE_TEXT_NODE = 5;
 
         function service(servicecode, argptr, heap_buffer) {
             switch (servicecode) {
             case ALLOC_ENTRY:
                 var ret = allocate_entry();
-                console.log("allocate : " + ret);
                 return ret;
 
             case FREE_ENTRY:
                 var value = ptr_get32(heap_buffer, argptr);
-                console.log("free : " + value);
                 free_entry(value);
                 return 0;
+
+            case DOCUMENT_CREATE_ELEMENT:
+                var index = ptr_get32(heap_buffer, argptr + 4*0);
+                var tagptr = ptr_get32(heap_buffer, argptr + 4*1);
+                var taglen = ptr_get32(heap_buffer, argptr + 4*2);
+
+                obj_table[index] = document.createElement(ptr_get_string(heap_buffer, tagptr, taglen));
+                return 0;
+
+            case DOCUMENT_CREATE_TEXT_NODE:
+                var index = ptr_get32(heap_buffer, argptr + 4*0);
+                var strptr = ptr_get32(heap_buffer, argptr + 4*1);
+                var strlen = ptr_get32(heap_buffer, argptr + 4*2);
+
+                obj_table[index] = document.createTextNode(ptr_get_string(heap_buffer, strptr, strlen));
+                return 0;
+
+            case ELEMENT_SETATTRIBUTE:
+                //    struct {
+                //        uint32_t e;
+                //        uint32_t nameptr;
+                //        uint32_t namelen;
+                //        uint32_t valueptr;
+                //        uint32_t valuelen;
+                //    }a = {entry, (uint32_t)(uintptr_t)name, (uint32_t)strlen(name), (uint32_t)(uintptr_t)value, (uint32_t)strlen(value)};
+                var index = ptr_get32(heap_buffer, argptr + 4*0);
+                var nameptr = ptr_get32(heap_buffer, argptr + 4*1);
+                var namelen = ptr_get32(heap_buffer, argptr + 4*2);
+                var valueptr = ptr_get32(heap_buffer, argptr + 4*3);
+                var valuelen = ptr_get32(heap_buffer, argptr + 4*4);
+
+                obj_table[index].setAttribute(ptr_get_string(heap_buffer, nameptr, namelen),
+                                              ptr_get_string(heap_buffer, valueptr, valuelen));
+                return 0;
+
+            case ELEMENT_APPENDCHILD:
+                var index = ptr_get32(heap_buffer, argptr + 4*0);
+                var child = ptr_get32(heap_buffer, argptr + 4*1);
+
+                obj_table[index].appendChild(obj_table[child]);
+                return 0;
+
             }
         }
 
@@ -134,8 +186,13 @@ var tinydomxx_ccall;
             return ret;
         }
 
+        function get_alived_obj_count() {
+            return allocated;
+        }
+
         tinydomxx_service = service;
         tinydomxx_ccall = tccall;
+        tinydomxx_get_alived_obj_count = get_alived_obj_count;
     }
 
 )();

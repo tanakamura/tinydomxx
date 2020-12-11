@@ -1,0 +1,97 @@
+<html>
+<head>
+
+<script type="text/javascript" src="tinydomxx.js"></script>
+
+<script>
+  function remove_all(node) {
+      while (node.firstChild) {
+          node.removeChild(node.firstChild);
+      }
+  }
+
+  function check_all_free() {
+      if (tinydomxx_get_alived_obj_count() != 0) {
+          throw "holds alived object";
+      }
+  }
+
+  
+  var Module = {
+      onRuntimeInitialized : function() {
+          if (1) {
+              var ret = tinydomxx_ccall('test_alloc', null, [], [], null);
+
+              if (tinydomxx_get_alived_obj_count() != 0) {
+                  console.log(tinydomxx_get_alived_obj_count());
+                  throw "failed : obj_count != 0 (" + tinydomxx_get_alived_obj_count() + ")";
+              }
+
+              console.log("test_alloc : OK");
+          }
+
+          {
+              var obj0 = document.createElement('div');
+              var obj1 = document.createElement('div');
+
+              var ret = tinydomxx_ccall('test_hold', null, ["jsobj","jsobj"], [obj0, obj1], null);
+
+              if (tinydomxx_get_alived_obj_count() != 1) {
+                  console.log(tinydomxx_get_alived_obj_count());
+                  throw "test_hold failed : obj_count != 0 (" + tinydomxx_get_alived_obj_count() + ")";
+              }
+
+              console.log("test_hold : OK");
+
+              var ret = ccall('test_release', null, [], [], null);
+
+              if (tinydomxx_get_alived_obj_count() != 0) {
+                  console.log(tinydomxx_get_alived_obj_count());
+                  throw "test_release failed : obj_count != 0 (" + tinydomxx_get_alived_obj_count() + ")";
+              }
+
+              console.log("test_release : OK");
+          }
+
+          {
+              var t = document.getElementById('T');
+              remove_all(t);
+              var ret = tinydomxx_ccall('test_append_text', null, ['jsobj'], [t], null);
+
+              check_all_free();
+
+              if (t.innerText != "hello") {
+                  throw "test_append_text failed : obj_count != 0 (" + tinydomxx_get_alived_obj_count() + ")";
+              }
+
+              remove_all(t);
+
+              console.log("test_append_text : OK");
+          }
+
+          {
+              var t = document.getElementById('T');
+              remove_all(t);
+              var ret = tinydomxx_ccall('test_insert_link', null, ['jsobj'], [t], null);
+
+              check_all_free();
+
+//              if (t.innerText != "hello") {
+//                  throw "test_append_text failed : obj_count != 0 (" + tinydomxx_get_alived_obj_count() + ")";
+//              }
+//
+//              remove_all(t);
+
+              console.log("test_append_text : OK");
+          }
+      }
+  }
+
+</script>
+
+<script id="module" async type="text/javascript" src="build/tinydomxx_test.js"></script>
+</head>
+<body>
+  <p id="T"> xx </p>
+</body>
+</html>

@@ -15,7 +15,8 @@ enum {
     FREE_ENTRY = 1,
     DOCUMENT_CREATE_ELEMENT = 2,
     ELEMENT_SETATTRIBUTE = 3,
-    NODE_APPENDCHILD = 4
+    ELEMENT_APPENDCHILD = 4,
+    DOCUMENT_CREATE_TEXT_NODE = 5
 };
 
 inline uint32_t alloc_js_entry() {
@@ -35,31 +36,43 @@ inline void document_create_element(uint32_t entry, const char *tag) {
     struct {
         uint32_t e;
         uint32_t tagptr;
-    }a = {entry, (uint32_t)(uintptr_t)tag};
+        uint32_t taglen;
+    }a = {entry, (uint32_t)(uintptr_t)tag, (uint32_t)strlen(tag)};
 
     tinydomxx_service(DOCUMENT_CREATE_ELEMENT, &a);
+}
+inline void document_create_text_node(uint32_t entry, const char *strptr) {
+    struct {
+        uint32_t e;
+        uint32_t strptr;
+        uint32_t strlen;
+    }a = {entry, (uint32_t)(uintptr_t)strptr, (uint32_t)strlen(strptr)};
+
+    tinydomxx_service(DOCUMENT_CREATE_TEXT_NODE, &a);
 }
 inline void element_setattribute(uint32_t entry, const char *name, const char *value) {
     struct {
         uint32_t e;
         uint32_t nameptr;
+        uint32_t namelen;
         uint32_t valueptr;
-    }a = {entry, (uint32_t)(uintptr_t)name, (uint32_t)(uintptr_t)value};
+        uint32_t valuelen;
+    }a = {entry, (uint32_t)(uintptr_t)name, (uint32_t)strlen(name), (uint32_t)(uintptr_t)value, (uint32_t)strlen(value)};
 
-    tinydomxx_service(DOCUMENT_CREATE_ELEMENT, &a);
+    tinydomxx_service(ELEMENT_SETATTRIBUTE, &a);
 }
 
-inline void node_appendchild(uint32_t entry, uint32_t child_entry) {
+inline void element_appendchild(uint32_t entry, uint32_t child_entry) {
     struct {
         uint32_t e;
         uint32_t child_entry;
     }a = {entry, child_entry};
 
-    tinydomxx_service(NODE_APPENDCHILD, &a);
+    tinydomxx_service(ELEMENT_APPENDCHILD, &a);
 }
 
 
-struct jsobj_refcnt {
+struct jsref_refcnt {
     uint64_t v;
 
     uint32_t count( ) const {
@@ -86,24 +99,24 @@ struct jsobj_refcnt {
 
 };
 
-struct jsobj {
-    jsobj_refcnt *refcnt;
+struct jsref {
+    jsref_refcnt *refcnt;
 
-    static jsobj alloc() {
-        return jsobj();
+    static jsref alloc() {
+        return jsref();
     }
 
-    ~jsobj() {
+    ~jsref() {
         this->release();
     }
-    jsobj(const jsobj &rhs) {
+    jsref(const jsref &rhs) {
         this->copy(rhs);
     }
-    jsobj(jsobj && rhs) {
+    jsref(jsref && rhs) {
         this->move(std::move(rhs));
     }
 
-    jsobj &operator = (const jsobj &rhs) {
+    jsref &operator = (const jsref &rhs) {
         if (&rhs == this) {
             return *this;
         }
@@ -113,7 +126,7 @@ struct jsobj {
         return *this;
     }
 
-    jsobj &operator = (jsobj &&rhs) {
+    jsref &operator = (jsref &&rhs) {
         if (&rhs == this) {
             return *this;
         }
@@ -128,13 +141,13 @@ struct jsobj {
     }
 
 private:
-    jsobj() {
+    jsref() {
         uint32_t h = alloc_js_entry();
-        this->refcnt = (jsobj_refcnt*)malloc(sizeof(jsobj_refcnt));
+        this->refcnt = (jsref_refcnt*)malloc(sizeof(jsref_refcnt));
         this->refcnt->init(h);
     }
 
-    void copy(const jsobj &rhs) {
+    void copy(const jsref &rhs) {
         if (rhs.refcnt) {
             this->refcnt = rhs.refcnt;
             this->refcnt->inc();
@@ -154,40 +167,50 @@ private:
         }
     }
 
-    void move(jsobj &&rhs) {
+    void move(jsref &&rhs) {
         this->refcnt = rhs.refcnt;
         rhs.refcnt = nullptr;
     }
 };
 
-struct HTMLElement {
-    jsobj obj;
+struct JSObj
+{
+    jsref obj;
 
-    HTMLElement(jsobj const &o)
+    JSObj(jsref const &o)
         :obj(o)
     {}
-    HTMLElement(jsobj const &&o)
-        :obj(o)
+    JSObj(jsref &&o)
+        :obj(std::move(o))
     {}
 
-    HTMLElement(HTMLElement const &e) = default;
+    JSObj(JSObj const &e) = default;
+    JSObj(JSObj && e) = default;
 
     void setAttribute(std::string const &name, std::string const &value) {
         element_setattribute(obj.entry(), name.c_str(), value.c_str());
     }
 
-    void appendChild(HTMLElement const &child) {
-        node_appendchild(this->obj.entry(), child.obj.entry());
+    void appendChild(JSObj const &child) {
+        element_appendchild(this->obj.entry(), child.obj.entry());
     }
 };
 
 struct Document {
-    HTMLElement createElement(std::string const &tag) {
-        auto o(jsobj::alloc());
+    JSObj createElement(std::string const &tag) {
+        auto o(jsref::alloc());
         document_create_element(o.entry(), tag.c_str());
-        return HTMLElement(std::move(o));
+        return JSObj(std::move(o));
+    }
+
+    JSObj createTextNode(std::string const &str) {
+        auto o(jsref::alloc());
+        document_create_text_node(o.entry(), str.c_str());
+        return JSObj(std::move(o));
     }
 };
+
+extern Document document;
 
 };
 
