@@ -67,7 +67,7 @@ test_insert_link(jsref *p)
     JSObj a = document.createElement("a");
     JSObj str = document.createTextNode("hello");
 
-    a.setAttribute("href", "http://example.com");
+    a.setAttribute("href", "http://example.com/");
     a.appendChild(str);
 
     o.appendChild(a);

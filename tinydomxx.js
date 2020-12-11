@@ -90,29 +90,22 @@ var tinydomxx_ccall;
                 return 0;
 
             case DOCUMENT_CREATE_ELEMENT:
-                var index = ptr_get32(heap_buffer, argptr + 4*0);
-                var tagptr = ptr_get32(heap_buffer, argptr + 4*1);
-                var taglen = ptr_get32(heap_buffer, argptr + 4*2);
+                var index = allocate_entry();
+                var tagptr = ptr_get32(heap_buffer, argptr + 4*0);
+                var taglen = ptr_get32(heap_buffer, argptr + 4*1);
 
                 obj_table[index] = document.createElement(ptr_get_string(heap_buffer, tagptr, taglen));
-                return 0;
+                return index;
 
             case DOCUMENT_CREATE_TEXT_NODE:
-                var index = ptr_get32(heap_buffer, argptr + 4*0);
-                var strptr = ptr_get32(heap_buffer, argptr + 4*1);
-                var strlen = ptr_get32(heap_buffer, argptr + 4*2);
+                var index = allocate_entry();
+                var strptr = ptr_get32(heap_buffer, argptr + 4*0);
+                var strlen = ptr_get32(heap_buffer, argptr + 4*1);
 
                 obj_table[index] = document.createTextNode(ptr_get_string(heap_buffer, strptr, strlen));
-                return 0;
+                return index;
 
             case ELEMENT_SETATTRIBUTE:
-                //    struct {
-                //        uint32_t e;
-                //        uint32_t nameptr;
-                //        uint32_t namelen;
-                //        uint32_t valueptr;
-                //        uint32_t valuelen;
-                //    }a = {entry, (uint32_t)(uintptr_t)name, (uint32_t)strlen(name), (uint32_t)(uintptr_t)value, (uint32_t)strlen(value)};
                 var index = ptr_get32(heap_buffer, argptr + 4*0);
                 var nameptr = ptr_get32(heap_buffer, argptr + 4*1);
                 var namelen = ptr_get32(heap_buffer, argptr + 4*2);

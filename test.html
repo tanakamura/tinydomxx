@@ -76,11 +76,17 @@
 
               check_all_free();
 
-//              if (t.innerText != "hello") {
-//                  throw "test_append_text failed : obj_count != 0 (" + tinydomxx_get_alived_obj_count() + ")";
-//              }
-//
-//              remove_all(t);
+              var a = t.firstChild;
+
+              if (a.tagName != "A") {
+                  throw "test_insert_link failed : (" + tinydomxx_get_alived_obj_count() + ")";
+              }
+
+              if (a.href != "http://example.com/") {
+                  throw "test_insert_link failed : href=" + a.href;
+              }
+
+              remove_all(t);
 
               console.log("test_append_text : OK");
           }

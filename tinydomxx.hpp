@@ -32,23 +32,21 @@ inline int free_js_entry(uint32_t e) {
     return tinydomxx_service(FREE_ENTRY, &a);
 }
 
-inline void document_create_element(uint32_t entry, const char *tag) {
+inline uint32_t document_create_element(const char *tag) {
     struct {
-        uint32_t e;
         uint32_t tagptr;
         uint32_t taglen;
-    }a = {entry, (uint32_t)(uintptr_t)tag, (uint32_t)strlen(tag)};
+    }a = {(uint32_t)(uintptr_t)tag, (uint32_t)strlen(tag)};
 
-    tinydomxx_service(DOCUMENT_CREATE_ELEMENT, &a);
+    return tinydomxx_service(DOCUMENT_CREATE_ELEMENT, &a);
 }
-inline void document_create_text_node(uint32_t entry, const char *strptr) {
+inline uint32_t document_create_text_node(const char *strptr) {
     struct {
-        uint32_t e;
         uint32_t strptr;
         uint32_t strlen;
-    }a = {entry, (uint32_t)(uintptr_t)strptr, (uint32_t)strlen(strptr)};
+    }a = {(uint32_t)(uintptr_t)strptr, (uint32_t)strlen(strptr)};
 
-    tinydomxx_service(DOCUMENT_CREATE_TEXT_NODE, &a);
+    return tinydomxx_service(DOCUMENT_CREATE_TEXT_NODE, &a);
 }
 inline void element_setattribute(uint32_t entry, const char *name, const char *value) {
     struct {
@@ -140,6 +138,11 @@ struct jsref {
         return refcnt->handle();
     }
 
+    explicit jsref(int h) {
+        this->refcnt = (jsref_refcnt*)malloc(sizeof(jsref_refcnt));
+        this->refcnt->init(h);
+    }
+
 private:
     jsref() {
         uint32_t h = alloc_js_entry();
@@ -198,15 +201,13 @@ struct JSObj
 
 struct Document {
     JSObj createElement(std::string const &tag) {
-        auto o(jsref::alloc());
-        document_create_element(o.entry(), tag.c_str());
-        return JSObj(std::move(o));
+        uint32_t h = document_create_element(tag.c_str());
+        return JSObj(std::move(jsref(h)));
     }
 
     JSObj createTextNode(std::string const &str) {
-        auto o(jsref::alloc());
-        document_create_text_node(o.entry(), str.c_str());
-        return JSObj(std::move(o));
+        uint32_t h = document_create_text_node(str.c_str());
+        return JSObj(std::move(jsref(h)));
     }
 };
 
